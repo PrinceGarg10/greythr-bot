@@ -1,16 +1,26 @@
-name: Greythr Daily Login
+name: Greythr Daily Attendance
 
 on:
   schedule:
-    # 9:00 AM IST = 3:30 AM UTC (IST is UTC+5:30)
-    # Runs Mon–Fri only
+    # ── Sign In: 9:00 AM IST = 3:30 AM UTC, Mon–Fri ──
     - cron: "30 3 * * 1-5"
+    # ── Sign Out: 9:30 PM IST = 16:00 UTC, Mon–Fri ──
+    - cron: "0 16 * * 1-5"
 
-  # Allows you to trigger it manually from GitHub too
+  # Trigger manually from the Actions tab (choose mode below)
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "signin"
+        type: choice
+        options:
+          - signin
+          - signout
 
 jobs:
-  login:
+  attendance:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,11 +34,33 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright python-dotenv
+          pip install playwright
           playwright install chromium --with-deps
 
-      - name: Run login script
+      # ── Determine mode based on schedule or manual input ──────────────────
+      - name: Set action mode
+        id: set_mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 3 * * 1-5" ]; then
+            echo "mode=signin" >> $GITHUB_OUTPUT
+          else
+            echo "mode=signout" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Run the bot ────────────────────────────────────────────────────────
+      - name: Run attendance bot (${{ steps.set_mode.outputs.mode }})
         env:
           GREYTHR_USERNAME: ${{ secrets.GREYTHR_USERNAME }}
           GREYTHR_PASSWORD: ${{ secrets.GREYTHR_PASSWORD }}
+          ACTION_MODE: ${{ steps.set_mode.outputs.mode }}
         run: python login.py
+
+      # ── Upload screenshots if something goes wrong ─────────────────────────
+      - name: Upload error screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshots-${{ steps.set_mode.outputs.mode }}
+          path: "*.png"
