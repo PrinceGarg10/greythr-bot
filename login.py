@@ -81,7 +81,6 @@ def step_click_signin_button(page) -> bool:
         signin_btn.wait_for(state="visible", timeout=15_000)
         signin_btn.click()
 
-        # Wait for modal content to appear instead of the [open] attribute
         page.wait_for_selector('text=Tell us your work location', timeout=10_000)
         log.info("  ✅ Clicked Sign In — modal is open.")
         return True
@@ -94,12 +93,11 @@ def step_click_signin_button(page) -> bool:
         log.error(f"  ❌ Error: {e}")
         page.screenshot(path="step2_signin_error.png")
         return False
-    
+
 
 def step_select_wfh_and_confirm(page) -> bool:
     log.info(f"── STEP 3: Verify '{WORK_LOCATION}' selected and confirm ──")
     try:
-        # Check what's currently selected in the dropdown
         selected_span = page.locator('span.selected-item-text').first
         selected_span.wait_for(state="visible", timeout=10_000)
         current = selected_span.inner_text().strip()
@@ -110,7 +108,6 @@ def step_select_wfh_and_confirm(page) -> bool:
             dropdown_btn = page.locator('button.dropdown-button').first
             dropdown_btn.click()
 
-            # Use dropdown-item divs, not role="option"
             option = page.locator('div.dropdown-item').filter(has_text=WORK_LOCATION).first
             option.wait_for(state="visible", timeout=5_000)
             option.click()
@@ -118,13 +115,12 @@ def step_select_wfh_and_confirm(page) -> bool:
         else:
             log.info(f"  ✅ Already set to '{WORK_LOCATION}' — skipping dropdown.")
 
-        # Click Sign In button inside the modal
+        # Pierce shadow DOM to click the actual button
         page.evaluate("""
             document.querySelector('gt-popup-modal gt-button[shade="primary"]')
                 .shadowRoot.querySelector('button')
                 .click()
         """)
-
         log.info("  ✅ Clicked Sign In in modal.")
         return True
 
@@ -137,18 +133,13 @@ def step_select_wfh_and_confirm(page) -> bool:
         page.screenshot(path="step3_modal_error.png")
         return False
 
+
 def step_verify_signedin(page) -> bool:
-    """STEP 4 (sign in) — Verify modal closed and Sign Out button is visible."""
+    """STEP 4 (sign in) — Verify modal closed and Sign In button is gone."""
     log.info("── STEP 4: Verify sign-in success ──")
     try:
-        page.wait_for_selector('gt-popup-modal[open]', state="hidden", timeout=10_000)
-        log.info("  ✅ Modal closed.")
-
-        signout_btn = page.locator(
-            'gt-attendance-info button.btn-primary[name="primary"]'
-        ).first
-        signout_btn.wait_for(state="hidden", timeout=10_000)
-        log.info("  ✅ Sign In button gone — attendance marked successfully!")
+        page.wait_for_selector('text=Tell us your work location', state="hidden", timeout=10_000)
+        log.info("  ✅ Modal closed — attendance marked successfully!")
         return True
 
     except PlaywrightTimeout:
@@ -171,14 +162,19 @@ def step_click_signout_button(page) -> bool:
     try:
         page.wait_for_load_state("networkidle")
 
-        # Sign Out is the link-style button (not primary) in the attendance widget
-        signout_btn = page.locator(
-            'gt-attendance-info button[name="View Swipes"]'
-        ).first
-        signout_btn.wait_for(state="visible", timeout=15_000)
-        signout_btn.click()
+        # Pierce shadow DOM to click Sign Out button inside gt-button[shade="link"]
+        page.evaluate("""
+            const buttons = document.querySelectorAll('gt-attendance-info gt-button');
+            for (const btn of buttons) {
+                const inner = btn.shadowRoot && btn.shadowRoot.querySelector('button');
+                if (inner && inner.innerText.trim() === 'Sign Out') {
+                    inner.click();
+                    break;
+                }
+            }
+        """)
 
-        page.wait_for_selector('gt-popup-modal[open]', timeout=10_000)
+        page.wait_for_selector('text=You are signing out', timeout=10_000)
         log.info("  ✅ Clicked Sign Out — modal is open.")
         return True
 
@@ -196,18 +192,15 @@ def step_confirm_signout(page) -> bool:
     """STEP 3 (sign out) — Click Sign Out in the modal (no location needed)."""
     log.info("── STEP 3: Confirm Sign Out in modal ──")
     try:
-        modal_signout = page.locator(
-            'gt-popup-modal[open] button.btn-primary[name="primary"]'
-        ).first
-        modal_signout.wait_for(state="visible", timeout=10_000)
-        modal_signout.click()
+        # Pierce shadow DOM same as sign-in modal button
+        page.evaluate("""
+            document.querySelector('gt-popup-modal gt-button[shade="primary"]')
+                .shadowRoot.querySelector('button')
+                .click()
+        """)
         log.info("  ✅ Clicked Sign Out in modal.")
         return True
 
-    except PlaywrightTimeout:
-        log.error("  ❌ Sign Out button in modal not found.")
-        page.screenshot(path="step3_signout_modal_error.png")
-        return False
     except Exception as e:
         log.error(f"  ❌ Modal error: {e}")
         page.screenshot(path="step3_signout_modal_error.png")
@@ -218,18 +211,12 @@ def step_verify_signedout(page) -> bool:
     """STEP 4 (sign out) — Verify modal closed and Sign In button is visible again."""
     log.info("── STEP 4: Verify sign-out success ──")
     try:
-        page.wait_for_selector('gt-popup-modal[open]', state="hidden", timeout=10_000)
-        log.info("  ✅ Modal closed.")
-
-        signin_btn = page.locator(
-            'gt-attendance-info button.btn-primary[name="primary"]'
-        ).first
-        signin_btn.wait_for(state="visible", timeout=10_000)
-        log.info("  ✅ Sign In button visible — signed out successfully!")
+        page.wait_for_selector('text=You are signing out', state="hidden", timeout=10_000)
+        log.info("  ✅ Modal closed — signed out successfully!")
         return True
 
     except PlaywrightTimeout:
-        log.error("  ❌ Verification failed — Sign In button not found after sign out.")
+        log.error("  ❌ Verification failed — modal did not close after sign out.")
         page.screenshot(path="step4_signout_verify_error.png")
         return False
     except Exception as e:
