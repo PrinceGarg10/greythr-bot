@@ -1,6 +1,6 @@
 """
-Grathr headless login — runs inside GitHub Actions.
-Edit the selectors below if they don't match Grathr's actual HTML.
+GREYTHR headless login — runs inside GitHub Actions.
+Edit the selectors below if they don't match GREYTHR's actual HTML.
 """
 
 import os
@@ -14,29 +14,29 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── Config — update these to match Grathr's login page ───────────────────────
-GRATHR_URL        = "https://www.grathr.com/login"
-USERNAME_SELECTOR = 'input[name="email"]'
+# ── Config — update these to match GREYTHR's login page ───────────────────────
+GREYTHR_URL        = "https://l7i.greythr.com/uas/portal/auth/login"
+USERNAME_SELECTOR = 'input[name="username"]'
 PASSWORD_SELECTOR = 'input[name="password"]'
 SUBMIT_SELECTOR   = 'button[type="submit"]'
-SUCCESS_URL_PART  = "/dashboard"
+SUCCESS_URL_PART  = "/v3/portal/ess/home"
 
 # ── Credentials come from GitHub Secrets ─────────────────────────────────────
-USERNAME = os.environ.get("GRATHR_USERNAME", "")
-PASSWORD = os.environ.get("GRATHR_PASSWORD", "")
+USERNAME = os.environ.get("GREYTHR_USERNAME", "")
+PASSWORD = os.environ.get("GREYTHR_PASSWORD", "")
 
 
 def login() -> bool:
     if not USERNAME or not PASSWORD:
-        log.error("GRATHR_USERNAME or GRATHR_PASSWORD secret is missing.")
+        log.error("GREYTHR_USERNAME or GREYTHR_PASSWORD secret is missing.")
         return False
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            log.info(f"Navigating to {GRATHR_URL} ...")
-            page.goto(GRATHR_URL, timeout=30_000)
+            log.info(f"Navigating to {GREYTHR_URL} ...")
+            page.goto(GREYTHR_URL, timeout=30_000)
 
             page.fill(USERNAME_SELECTOR, USERNAME)
             page.fill(PASSWORD_SELECTOR, PASSWORD)
