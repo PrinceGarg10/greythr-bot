@@ -103,7 +103,7 @@ def step_select_wfh_and_confirm(page) -> bool:
     log.info(f"── STEP 3: Select '{WORK_LOCATION}' and confirm ──")
     try:
         dropdown_btn = page.locator(
-            'gt-popup-modal[open] button.dropdown-button'
+            'gt-popup-modal[open] button.btn-primary[name="primary"]'
         ).first
         dropdown_btn.wait_for(state="visible", timeout=10_000)
         dropdown_btn.click()
