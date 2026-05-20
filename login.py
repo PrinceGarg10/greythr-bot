@@ -73,18 +73,16 @@ def step_login(page) -> bool:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def step_click_signin_button(page) -> bool:
-    """STEP 2 (sign in) — Click the Sign In button on the dashboard."""
     log.info("── STEP 2: Click Sign In button on dashboard ──")
     try:
         page.wait_for_load_state("networkidle")
 
-        signin_btn = page.locator(
-            'gt-attendance-info button.btn-primary[name="primary"]'
-        ).first
+        signin_btn = page.locator('gt-attendance-info gt-button').first
         signin_btn.wait_for(state="visible", timeout=15_000)
         signin_btn.click()
 
-        page.wait_for_selector('gt-popup-modal[open]', timeout=10_000)
+        # Wait for modal content to appear instead of the [open] attribute
+        page.wait_for_selector('text=Tell us your work location', timeout=10_000)
         log.info("  ✅ Clicked Sign In — modal is open.")
         return True
 
@@ -96,26 +94,24 @@ def step_click_signin_button(page) -> bool:
         log.error(f"  ❌ Error: {e}")
         page.screenshot(path="step2_signin_error.png")
         return False
-
+    
 
 def step_select_wfh_and_confirm(page) -> bool:
-    """STEP 3 (sign in) — Verify WFH selected (select if not), then click Sign In."""
     log.info(f"── STEP 3: Verify '{WORK_LOCATION}' selected and confirm ──")
     try:
         # Check what's currently selected in the dropdown
-        selected_span = page.locator('gt-popup-modal[open] span.selected-item-text').first
+        selected_span = page.locator('span.selected-item-text').first
         selected_span.wait_for(state="visible", timeout=10_000)
         current = selected_span.inner_text().strip()
         log.info(f"  Current selection: '{current}'")
 
         if current != WORK_LOCATION:
             log.info(f"  Selecting '{WORK_LOCATION}' from dropdown...")
-            dropdown_btn = page.locator(
-                'gt-popup-modal[open] button.dropdown-button'
-            ).first
+            dropdown_btn = page.locator('button.dropdown-button').first
             dropdown_btn.click()
 
-            option = page.get_by_role("option", name=WORK_LOCATION)
+            # Use dropdown-item divs, not role="option"
+            option = page.locator('div.dropdown-item').filter(has_text=WORK_LOCATION).first
             option.wait_for(state="visible", timeout=5_000)
             option.click()
             log.info(f"  ✅ Selected '{WORK_LOCATION}'.")
@@ -123,11 +119,12 @@ def step_select_wfh_and_confirm(page) -> bool:
             log.info(f"  ✅ Already set to '{WORK_LOCATION}' — skipping dropdown.")
 
         # Click Sign In button inside the modal
-        modal_signin = page.locator(
-            'gt-popup-modal[open] button.btn-primary[name="primary"]'
-        ).first
-        modal_signin.wait_for(state="visible", timeout=5_000)
-        modal_signin.click()
+        page.evaluate("""
+            document.querySelector('gt-popup-modal gt-button[shade="primary"]')
+                .shadowRoot.querySelector('button')
+                .click()
+        """)
+
         log.info("  ✅ Clicked Sign In in modal.")
         return True
 
@@ -139,7 +136,6 @@ def step_select_wfh_and_confirm(page) -> bool:
         log.error(f"  ❌ Modal error: {e}")
         page.screenshot(path="step3_modal_error.png")
         return False
-
 
 def step_verify_signedin(page) -> bool:
     """STEP 4 (sign in) — Verify modal closed and Sign Out button is visible."""
