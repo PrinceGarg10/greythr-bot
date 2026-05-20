@@ -4,8 +4,8 @@ on:
   schedule:
     # ── Sign In: 9:00 AM IST = 3:30 AM UTC, Mon–Fri ──
     - cron: "30 3 * * 1-5"
-    # ── Sign Out: 9:30 PM IST = 16:00 UTC, Mon–Fri ──
-    - cron: "0 16 * * 1-5"
+    # ── Sign Out: 6:30 PM IST = 13:00 UTC, Mon–Fri ──
+    - cron: "0 13 * * 1-5"
 
   # Trigger manually from the Actions tab (choose mode below)
   workflow_dispatch:
@@ -24,6 +24,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check if bot is enabled
+        run: |
+          if [ "${{ vars.BOT_ENABLED }}" != "true" ]; then
+            echo "❌ Bot is disabled (BOT_ENABLED != true). Skipping run."
+            exit 0
+          fi
+          echo "✅ Bot is enabled. Proceeding..."
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
