@@ -4,7 +4,7 @@ Greythr Daily Attendance Bot — runs inside GitHub Actions.
 Sign In flow (runs at 9:00 AM IST):
   1. Login        — fill credentials and submit
   2. Sign In      — click the Sign In button on the dashboard
-  3. WFH + Submit — select Work from Home in the modal, click Sign In
+  3. WFH + Submit — verify Work from Home selected, click Sign In
   4. Verify       — confirm modal closed and Sign Out button is visible
 
 Sign Out flow (runs at 6:30 PM IST):
@@ -36,7 +36,7 @@ PASSWORD = os.environ.get("GREYTHR_PASSWORD", "")
 ACTION_MODE = os.environ.get("ACTION_MODE", "signin").lower()
 
 # ── Work location to select in the sign-in modal ─────────────────────────────
-WORK_LOCATION = "Work from Home"   # change to "Office" if needed
+WORK_LOCATION = "Work from Home"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -99,21 +99,30 @@ def step_click_signin_button(page) -> bool:
 
 
 def step_select_wfh_and_confirm(page) -> bool:
-    """STEP 3 (sign in) — Select Work from Home and click Sign In in modal."""
-    log.info(f"── STEP 3: Select '{WORK_LOCATION}' and confirm ──")
+    """STEP 3 (sign in) — Verify WFH selected (select if not), then click Sign In."""
+    log.info(f"── STEP 3: Verify '{WORK_LOCATION}' selected and confirm ──")
     try:
-        dropdown_btn = page.locator(
-            'gt-popup-modal[open] button.btn-primary[name="primary"]'
-        ).first
-        dropdown_btn.wait_for(state="visible", timeout=10_000)
-        dropdown_btn.click()
-        log.info("  Dropdown opened.")
+        # Check what's currently selected in the dropdown
+        selected_span = page.locator('gt-popup-modal[open] span.selected-item-text').first
+        selected_span.wait_for(state="visible", timeout=10_000)
+        current = selected_span.inner_text().strip()
+        log.info(f"  Current selection: '{current}'")
 
-        option = page.get_by_role("option", name=WORK_LOCATION)
-        option.wait_for(state="visible", timeout=5_000)
-        option.click()
-        log.info(f"  ✅ Selected '{WORK_LOCATION}'.")
+        if current != WORK_LOCATION:
+            log.info(f"  Selecting '{WORK_LOCATION}' from dropdown...")
+            dropdown_btn = page.locator(
+                'gt-popup-modal[open] button.dropdown-button'
+            ).first
+            dropdown_btn.click()
 
+            option = page.get_by_role("option", name=WORK_LOCATION)
+            option.wait_for(state="visible", timeout=5_000)
+            option.click()
+            log.info(f"  ✅ Selected '{WORK_LOCATION}'.")
+        else:
+            log.info(f"  ✅ Already set to '{WORK_LOCATION}' — skipping dropdown.")
+
+        # Click Sign In button inside the modal
         modal_signin = page.locator(
             'gt-popup-modal[open] button.btn-primary[name="primary"]'
         ).first
@@ -140,14 +149,14 @@ def step_verify_signedin(page) -> bool:
         log.info("  ✅ Modal closed.")
 
         signout_btn = page.locator(
-            'gt-attendance-info gt-button[shade="link"]'
-        ).filter(has_text="Sign Out").first
-        signout_btn.wait_for(state="visible", timeout=10_000)
-        log.info("  ✅ Sign Out button visible — attendance marked successfully!")
+            'gt-attendance-info button.btn-primary[name="primary"]'
+        ).first
+        signout_btn.wait_for(state="hidden", timeout=10_000)
+        log.info("  ✅ Sign In button gone — attendance marked successfully!")
         return True
 
     except PlaywrightTimeout:
-        log.error("  ❌ Verification failed — Sign Out button not found.")
+        log.error("  ❌ Verification failed.")
         page.screenshot(path="step4_verify_error.png")
         return False
     except Exception as e:
@@ -166,9 +175,10 @@ def step_click_signout_button(page) -> bool:
     try:
         page.wait_for_load_state("networkidle")
 
+        # Sign Out is the link-style button (not primary) in the attendance widget
         signout_btn = page.locator(
-            'gt-attendance-info gt-button[shade="link"]'
-        ).filter(has_text="Sign Out").first
+            'gt-attendance-info button[name="View Swipes"]'
+        ).first
         signout_btn.wait_for(state="visible", timeout=15_000)
         signout_btn.click()
 
@@ -191,7 +201,7 @@ def step_confirm_signout(page) -> bool:
     log.info("── STEP 3: Confirm Sign Out in modal ──")
     try:
         modal_signout = page.locator(
-            'gt-popup-modal[open] gt-button[shade="primary"]'
+            'gt-popup-modal[open] button.btn-primary[name="primary"]'
         ).first
         modal_signout.wait_for(state="visible", timeout=10_000)
         modal_signout.click()
@@ -216,7 +226,7 @@ def step_verify_signedout(page) -> bool:
         log.info("  ✅ Modal closed.")
 
         signin_btn = page.locator(
-            'gt-attendance-info gt-button[shade="primary"]'
+            'gt-attendance-info button.btn-primary[name="primary"]'
         ).first
         signin_btn.wait_for(state="visible", timeout=10_000)
         log.info("  ✅ Sign In button visible — signed out successfully!")
