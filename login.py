@@ -79,7 +79,7 @@ def step_click_signin_button(page) -> bool:
         page.wait_for_load_state("networkidle")
 
         signin_btn = page.locator(
-            'gt-attendance-info gt-button[shade="primary"]'
+            'gt-attendance-info button.btn-primary[name="primary"]'
         ).first
         signin_btn.wait_for(state="visible", timeout=15_000)
         signin_btn.click()
