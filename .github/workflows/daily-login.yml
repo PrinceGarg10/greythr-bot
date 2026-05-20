@@ -22,16 +22,9 @@ on:
 jobs:
   attendance:
     runs-on: ubuntu-latest
+    if: vars.BOT_ENABLED == 'true'
 
     steps:
-      - name: Check if bot is enabled
-        run: |
-          if [ "${{ vars.BOT_ENABLED }}" != "true" ]; then
-            echo "❌ Bot is disabled (BOT_ENABLED != true). Skipping run."
-            exit 0
-          fi
-          echo "✅ Bot is enabled. Proceeding..."
-
       - name: Checkout repo
         uses: actions/checkout@v4
 
