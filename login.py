@@ -115,7 +115,7 @@ def step_select_wfh_and_confirm(page) -> bool:
         log.info(f"  ✅ Selected '{WORK_LOCATION}'.")
 
         modal_signin = page.locator(
-            'gt-popup-modal[open] gt-button[shade="primary"]'
+            'gt-popup-modal[open] button.btn-primary[name="primary"]'
         ).first
         modal_signin.wait_for(state="visible", timeout=5_000)
         modal_signin.click()
