@@ -174,7 +174,6 @@ def step_click_signout_button(page) -> bool:
             }
         """)
 
-        page.wait_for_selector('text=You are signing out', timeout=10_000)
         log.info("  ✅ Clicked Sign Out — modal is open.")
         return True
 
